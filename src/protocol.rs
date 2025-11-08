@@ -9,29 +9,35 @@ use std::time::Instant;
 /// The `Protocol` trait is a simplified interface making it easy to write
 /// network protocols in a modular and reusable way, decoupled from the
 /// underlying network and timer, etc. It is one of sans-io fundamental abstractions.
-pub trait Protocol {
-    /// Associated transmit type
-    type Transmit;
-
-    /// Associated event type
-    type Event;
-
-    /// Associated error type
+pub trait Protocol<Rin, Win, Ein> {
+    /// Associated output read type
+    type Rout;
+    /// Associated output write type
+    type Wout;
+    /// Associated output event type
+    type Eout;
+    /// Associated result error type
     type Error;
 
-    /// Handles transmit
-    fn handle_transmit(&mut self, transmit: Self::Transmit) -> Result<(), Self::Error>;
+    /// Handles Rin and returns Rout for next inbound handler handling
+    fn handle_read(&mut self, msg: Rin) -> Result<(), Self::Error>;
 
-    /// Polls transmit
-    fn poll_transmit(&mut self) -> Option<Self::Transmit>;
+    /// Polls Rout from internal queue for next inbound handler handling
+    fn poll_read(&mut self) -> Option<Self::Rout>;
+
+    /// Handles Win and returns Wout for next outbound handler handling
+    fn handle_write(&mut self, msg: Win) -> Result<(), Self::Error>;
+
+    /// Polls Wout from internal queue for next outbound handler handling
+    fn poll_write(&mut self) -> Option<Self::Wout>;
 
     /// Handles event
-    fn handle_event(&mut self, _evt: Self::Event) -> Result<(), Self::Error> {
+    fn handle_event(&mut self, _evt: Ein) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Polls event
-    fn poll_event(&mut self) -> Option<Self::Event> {
+    fn poll_event(&mut self) -> Option<Self::Eout> {
         None
     }
 
@@ -51,27 +57,36 @@ pub trait Protocol {
     }
 }
 
-impl<P> Protocol for &mut P
+impl<P, Rin, Win, Ein> Protocol<Rin, Win, Ein> for &mut P
 where
-    P: Protocol + ?Sized,
+    P: Protocol<Rin, Win, Ein> + ?Sized,
 {
-    type Transmit = P::Transmit;
-    type Event = P::Event;
+    type Rout = P::Rout;
+    type Wout = P::Wout;
+    type Eout = P::Eout;
     type Error = P::Error;
 
-    fn handle_transmit(&mut self, msg: P::Transmit) -> Result<(), P::Error> {
-        (**self).handle_transmit(msg)
+    fn handle_read(&mut self, msg: Rin) -> Result<(), P::Error> {
+        (**self).handle_read(msg)
     }
 
-    fn poll_transmit(&mut self) -> Option<P::Transmit> {
-        (**self).poll_transmit()
+    fn poll_read(&mut self) -> Option<P::Rout> {
+        (**self).poll_read()
     }
 
-    fn handle_event(&mut self, evt: P::Event) -> Result<(), P::Error> {
+    fn handle_write(&mut self, msg: Win) -> Result<(), P::Error> {
+        (**self).handle_write(msg)
+    }
+
+    fn poll_write(&mut self) -> Option<P::Wout> {
+        (**self).poll_write()
+    }
+
+    fn handle_event(&mut self, evt: Ein) -> Result<(), P::Error> {
         (**self).handle_event(evt)
     }
 
-    fn poll_event(&mut self) -> Option<P::Event> {
+    fn poll_event(&mut self) -> Option<P::Eout> {
         (**self).poll_event()
     }
 
@@ -83,32 +98,41 @@ where
         (**self).poll_timeout()
     }
 
-    fn close(&mut self) -> Result<(), Self::Error> {
+    fn close(&mut self) -> Result<(), P::Error> {
         (**self).close()
     }
 }
 
-impl<P> Protocol for Box<P>
+impl<P, Rin, Win, Ein> Protocol<Rin, Win, Ein> for Box<P>
 where
-    P: Protocol + ?Sized,
+    P: Protocol<Rin, Win, Ein> + ?Sized,
 {
-    type Transmit = P::Transmit;
-    type Event = P::Event;
+    type Rout = P::Rout;
+    type Wout = P::Wout;
+    type Eout = P::Eout;
     type Error = P::Error;
 
-    fn handle_transmit(&mut self, msg: P::Transmit) -> Result<(), P::Error> {
-        (**self).handle_transmit(msg)
+    fn handle_read(&mut self, msg: Rin) -> Result<(), P::Error> {
+        (**self).handle_read(msg)
     }
 
-    fn poll_transmit(&mut self) -> Option<P::Transmit> {
-        (**self).poll_transmit()
+    fn poll_read(&mut self) -> Option<P::Rout> {
+        (**self).poll_read()
     }
 
-    fn handle_event(&mut self, evt: P::Event) -> Result<(), P::Error> {
+    fn handle_write(&mut self, msg: Win) -> Result<(), P::Error> {
+        (**self).handle_write(msg)
+    }
+
+    fn poll_write(&mut self) -> Option<P::Wout> {
+        (**self).poll_write()
+    }
+
+    fn handle_event(&mut self, evt: Ein) -> Result<(), P::Error> {
         (**self).handle_event(evt)
     }
 
-    fn poll_event(&mut self) -> Option<P::Event> {
+    fn poll_event(&mut self) -> Option<P::Eout> {
         (**self).poll_event()
     }
 
@@ -120,7 +144,7 @@ where
         (**self).poll_timeout()
     }
 
-    fn close(&mut self) -> Result<(), Self::Error> {
+    fn close(&mut self) -> Result<(), P::Error> {
         (**self).close()
     }
 }

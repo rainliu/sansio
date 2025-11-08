@@ -19,6 +19,11 @@
 //! is doing more than one function than you should split it into individual handlers. This is really important for
 //! maintainability and flexibility as its common to change your protocol for one reason or the other.
 //!
+//! The [Protocol](crate::Protocol) trait defines the core abstractions for building sans-io protocols.
+//! It enables writing modular, reusable network protocols that are fully decoupled from underlying
+//! networking, timers, and other I/O mechanisms. Despite its simplicity, it is a powerful foundation
+//! for the rest of the sans-io library.
+//!
 //! ### How does an event flow in a Pipeline?
 //! ```text
 //!                                                       | write()
@@ -175,6 +180,9 @@
 //!     pipeline.transport_inactive();
 //! }
 //! ```
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/sansio-org/sansio/master/doc/sansio-white.png"
+)]
 #![warn(rust_2018_idioms)]
 #![allow(dead_code)]
 #![warn(missing_docs)]
